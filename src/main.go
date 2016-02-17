@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
 
 func download(id int, c chan int) {
@@ -16,25 +17,52 @@ func download(id int, c chan int) {
 	c <- id
 }
 
-func getShops() (ids [2]int) {
-	resp, err := http.Get("http://www.pathofexile.com/forum/view-forum/standard-trading-shops")
-	if err != nil {
-		// handle error
+func getShopIds(url string) [][]byte {
+	resp, _ := http.Get(url)
+	body, _ := ioutil.ReadAll(resp.Body)
+	expr, _ := regexp.Compile("thread_title\\D+(?P<id>\\d+)")
+	matches := expr.FindAllSubmatch(body, -1)
+	retval := make([][]byte, len(matches))
+	for i, e := range matches {
+		retval[i] = e[1]
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	fmt.Printf("%s", body)
-	return [2]int{1, 2}
+
+	return retval
+}
+
+func bytesAsInt(bts []byte) (i int) {
+	i = 0
+	for _, b := range bts {
+		i *= 10
+		i += int(b) - 48
+	}
+	return
+}
+
+func getShops(page int, snc chan int) {
+	shopIds := getShopIds(
+		fmt.Sprintf("http://www.pathofexile.com/forum/view-forum/standard-trading-shops/page/%d",
+			page))
+	c := make(chan int)
+	for _, id := range shopIds {
+		go download(bytesAsInt(id), c)
+	}
+
+	for range shopIds {
+		fmt.Printf("done: %d\n", <-c)
+	}
+
+	snc <- page
 }
 
 func main() {
-	getShops()
-	// const dlCount int = 5
-	// c := make(chan int)
-	// for i := 1588095; i > 1588095-dlCount; i-- {
-	//     go download(i, c)
-	// }
-	//
-	// for i := 0; i < dlCount; i++ {
-	//     fmt.Printf("done: %d\n", <-c)
-	// }
+	const pageCount = 2
+	c := make(chan int)
+	for i := 0; i < pageCount; i++ {
+		getShops(i, c)
+	}
+
+	for i := 0; i < pageCount; i++ {
+		fmt.Printf("done: %d\n", <-c)
+	}
 }
