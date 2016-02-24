@@ -10,10 +10,13 @@ import (
 func download(id int, c chan int) {
 	resp, err := http.Get(fmt.Sprintf("http://www.pathofexile.com/forum/view-thread/%d", id))
 	if err != nil {
-		// handle error
+		fmt.Printf("ERR: %s", err)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	ioutil.WriteFile(fmt.Sprintf("shops/%d.html", id), body, 0666)
+	if err != nil {
+		fmt.Printf("ERR: %s", err)
+	}
 	c <- id
 }
 
@@ -39,7 +42,7 @@ func bytesAsInt(bts []byte) (i int) {
 	return
 }
 
-func getShops(page int, snc chan int) {
+func getShops(page int) {
 	shopIds := getShopIds(
 		fmt.Sprintf("http://www.pathofexile.com/forum/view-forum/standard-trading-shops/page/%d",
 			page))
@@ -51,18 +54,13 @@ func getShops(page int, snc chan int) {
 	for range shopIds {
 		fmt.Printf("done: %d\n", <-c)
 	}
-
-	snc <- page
 }
 
 func main() {
-	const pageCount = 2
-	c := make(chan int)
-	for i := 0; i < pageCount; i++ {
-		getShops(i, c)
+	const pageCount = 1
+	for i := 1; i < pageCount + 1; i++ {
+		getShops(i)
 	}
 
-	for i := 0; i < pageCount; i++ {
-		fmt.Printf("done: %d\n", <-c)
-	}
+	fmt.Printf("FINISHED")
 }
