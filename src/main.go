@@ -33,6 +33,20 @@ func getShopIds(url string) [][]byte {
 	return retval
 }
 
+func getItemJSON(shopID int) {
+	expr, _ := regexp.Compile("new R\\((.*)\\);")
+	shopHTML, err := ioutil.ReadFile(fmt.Sprintf("shops/%d.html", shopID))
+	if err != nil {
+		fmt.Printf("ERR: %s", err)
+	}
+	matches := expr.FindSubmatch(shopHTML)
+	if matches == nil {
+		fmt.Printf("shop '%d' has no items\n", shopID)
+	} else {
+		ioutil.WriteFile(fmt.Sprintf("shops/%d.json", shopID), matches[1], 0666)
+	}
+}
+
 func bytesAsInt(bts []byte) (i int) {
 	i = 0
 	for _, b := range bts {
@@ -57,10 +71,21 @@ func getShops(page int) {
 }
 
 func main() {
-	const pageCount = 1
-	for i := 1; i < pageCount + 1; i++ {
-		getShops(i)
-	}
+	// const pageCount = 1
+	// for i := 1; i < pageCount+1; i++ {
+	// 	getShops(i)
+	// }
 
-	fmt.Printf("FINISHED")
+	getItemJSON(389691)
+
+	fmt.Println("FINISHED")
 }
+
+// frameType property:
+// #  0 Normal Item
+// #  1 Magic Item
+// #  2 Rare Item
+// #  3 Unique Item
+// #  4 Gem
+// #  5 Currency
+// #  6 Quest Item
