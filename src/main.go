@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"log"
 )
 
 func download(id int, c chan int) {
@@ -20,17 +21,26 @@ func download(id int, c chan int) {
 	c <- id
 }
 
-func getShopIds(url string) [][]byte {
-	resp, _ := http.Get(url)
-	body, _ := ioutil.ReadAll(resp.Body)
-	expr, _ := regexp.Compile("thread_title\\D+(?P<id>\\d+)")
+func getShopIds(url string) ([][]byte, error) {
+	resp, err := http.Get(url)
+	if (err != nil) {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if (err != nil) {
+		return nil, err
+	}
+	expr, err := regexp.Compile("thread_title\\D+(?P<id>\\d+)")
+	if (err != nil) {
+		return nil, err
+	}
 	matches := expr.FindAllSubmatch(body, -1)
 	retval := make([][]byte, len(matches))
 	for i, e := range matches {
 		retval[i] = e[1]
 	}
 
-	return retval
+	return retval, nil
 }
 
 func getItemJSON(shopID int) {
@@ -57,9 +67,12 @@ func bytesAsInt(bts []byte) (i int) {
 }
 
 func getShops(page int) {
-	shopIds := getShopIds(
+	shopIds, err := getShopIds(
 		fmt.Sprintf("http://www.pathofexile.com/forum/view-forum/standard-trading-shops/page/%d",
 			page))
+	if (err != nil) {
+		log.Fatal(err)
+	}
 	c := make(chan int)
 	for _, id := range shopIds {
 		go download(bytesAsInt(id), c)
